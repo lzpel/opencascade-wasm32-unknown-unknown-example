@@ -1,0 +1,95 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the workflow to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy at a time.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Project Pages live at https://lzpel.github.io/cadrum-wasm-example/ ,
+      # so the static export must be built with this base path (see next.config.js).
+      PAGES_BASE_PATH: /cadrum-wasm-example
+      # build.sh reads this to find the wasi-sdk clang + sysroot.
+      WASI_SDK_PATH: ${{ github.workspace }}/wasi-sdk-33
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Rust (stable) + wasm target
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + wasm target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('wasm/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Download wasi-sdk 33 (Linux)
+        run: |
+          curl -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-x86_64-linux.tar.gz | tar xz
+          mv wasi-sdk-33.0-x86_64-linux wasi-sdk-33
+          test -x wasi-sdk-33/bin/clang
+
+      - name: Build wasm (cadrum from git main, rev1 prebuilt OCCT)
+        run: |
+          cd wasm
+          npm install
+          bash build.sh
+
+      # Run the SAME wasm under Node (V8) — catches wasm runtime bugs without a
+      # browser. Fails the build if STEP→GLB conversion is broken.
+      - name: CLI smoke test (Node)
+        run: node --experimental-wasm-exnref run_node.mjs
+
+      - name: Build static site (next export)
+        run: |
+          npm install
+          npm run build
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

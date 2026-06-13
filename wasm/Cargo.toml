@@ -1,0 +1,24 @@
+[package]
+name = "cadrum_web"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+cadrum = { git = "https://github.com/lzpel/cadrum" }
+
+# OCCT-derived wasm exception handling makes wasm-opt(binaryen) crash in its
+# Precompute pass, so disable wasm-opt (this only skips optimization).
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Size optimization for the final wasm (rust side only; OCCT/C++ is handled by cc/cmake).
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
