@@ -1,9 +1,0 @@
-{
-  "name": "cadrum-web-wasm-build",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Build tooling for the cadrum_web wasm crate (binaryen provides wasm-opt for EH normalization). See build.sh.",
-  "devDependencies": {
-    "binaryen": "^130.0.0"
-  }
-}

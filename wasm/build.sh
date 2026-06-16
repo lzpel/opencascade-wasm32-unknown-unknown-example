@@ -6,6 +6,11 @@
 # must be compiled with the wasi-sdk clang + sysroot, so we mirror the toolchain
 # env from cadrum's sandbox-wasm/makefile here.
 #
+# Nothing else is needed: the three wasm runtime problems this example used to
+# work around are now solved upstream in cadrum (see README), so there is no
+# WASI shim, no `wasm-opt --translate-to-exnref` normalization, and no glue
+# patching — just set the toolchain env and run wasm-pack.
+#
 # Portable: works on Linux (CI / GitHub Actions) and on Windows (Git-Bash/MSYS).
 #
 # Toolchain discovery:
@@ -46,49 +51,20 @@ SYSROOT="$(to_native "$WASI/share/wasi-sysroot")"
 export PATH="$WASI/bin:$PATH"
 export MSYS_NO_PATHCONV=1
 export CXXSTDLIB=c++
-export CMAKE_GENERATOR="Unix Makefiles"
 export CC_wasm32_unknown_unknown=clang
 export CXX_wasm32_unknown_unknown=clang++
 
+# cadrum's build.rs compiles its cxx bridge TU for wasm32 with the cc crate, so
+# hand it the wasi-sdk target/sysroot via the cc-crate env vars. The OCCT C++ is
+# compiled with -fwasm-exceptions (the new exnref EH model); cadrum's build.rs
+# already adds `-mllvm -wasm-use-legacy-eh=false` to keep the bridge on the same
+# exnref encoding, so we only need to select the target + sysroot + exceptions.
 WASI_EMU="-D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_GETPID"
 export CXXFLAGS_wasm32_unknown_unknown="--target=wasm32-wasip1 --sysroot=$SYSROOT -fwasm-exceptions -fexceptions $WASI_EMU"
 export CFLAGS_wasm32_unknown_unknown="--target=wasm32-wasip1 --sysroot=$SYSROOT $WASI_EMU"
-# The OCCT C++ prebuilt is compiled with -fwasm-exceptions (the *new* wasm
-# exception-handling model). rustc/LLVM default to the *legacy* EH encoding,
-# and a wasm module may not mix the two ("module uses a mix of legacy and new
-# exception handling instructions"). Force the Rust side onto the new model so
-# the whole module is consistent:
-#   +exception-handling          : enable the EH feature on the Rust codegen
-#   -wasm-use-legacy-eh=false     : emit the new try_table/throw_ref encoding
-# OCCT registers its whole type system (and the dispatch tables that drive STEP
-# parsing) from C++ global constructors. Those run in __wasm_call_ctors, which
-# wasm-bindgen's `--target web` glue does NOT call for a wasm32-unknown-unknown
-# cdylib — so without intervention the first OCCT call dispatches through an
-# uninitialized table ("null function or function signature mismatch"). Force
-# the linker to export __wasm_call_ctors so the JS init can run it once.
-export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="-L native=$SYSROOT/lib/wasm32-wasip1/eh -L native=$SYSROOT/lib/wasm32-wasip1 -l static=c++abi -l static=unwind -l static=c -C target-feature=+exception-handling -C llvm-args=-wasm-use-legacy-eh=false -C link-arg=--export=__wasm_call_ctors"
+# Link the exnref (eh) variant of libc++abi/libunwind/libc from the wasi-sdk
+# sysroot. The final link is done by rustc for wasm32-unknown-unknown.
+export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="-L native=$SYSROOT/lib/wasm32-wasip1/eh -L native=$SYSROOT/lib/wasm32-wasip1 -l static=c++abi -l static=unwind -l static=c"
 
 cd "$HERE"
 "$WASM_PACK" build --target web -d pkg "$@"
-
-# Normalize exception-handling encoding for browsers. clang's -fwasm-exceptions
-# (OCCT C++) and rustc emit *different* EH encodings; a wasm module may not mix
-# legacy + new EH instructions, and Chrome's stable validator rejects the mix
-# ("module uses a mix of legacy and new exception handling instructions").
-# `wasm-opt --translate-to-exnref` rewrites the whole module onto the single
-# exnref model so it validates everywhere. (`-all` enables every feature so
-# the EH/GC instructions parse.) Node tolerates the mix only behind a flag, so
-# this step is what makes the browser path work.
-WASM_OPT="$HERE/node_modules/.bin/wasm-opt"
-if [ -x "$WASM_OPT" ] || [ -x "$WASM_OPT.cmd" ]; then
-  "$WASM_OPT" -all --translate-to-exnref pkg/cadrum_web_bg.wasm -o pkg/cadrum_web_bg.wasm
-  echo "build.sh: normalized EH via wasm-opt --translate-to-exnref"
-else
-  echo "build.sh: WARNING wasm-opt (binaryen) not found; browser EH may be mixed. Run: npm i --no-save binaryen" >&2
-fi
-
-# The cadrum wasm imports the WASI ABI (`wasi_snapshot_preview1`). wasm-pack
-# emits bare imports a browser bundler cannot resolve. Drop in a minimal WASI
-# shim and rewire the generated glue to use it. (Idempotent.)
-cp -f "$HERE/wasi_shim.js" "$HERE/pkg/wasi_shim.js"
-node "$(to_native "$HERE/patch_glue.mjs")"

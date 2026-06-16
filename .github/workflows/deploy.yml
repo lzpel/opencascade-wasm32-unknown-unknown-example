@@ -59,10 +59,9 @@ jobs:
           mv wasi-sdk-33.0-x86_64-linux wasi-sdk-33
           test -x wasi-sdk-33/bin/clang
 
-      - name: Build wasm (cadrum from git main, rev1 prebuilt OCCT)
+      - name: Build wasm (cadrum from git, rev2 prebuilt OCCT)
         run: |
           cd wasm
-          npm install
           bash build.sh
 
       # Run the SAME wasm under Node (V8) — catches wasm runtime bugs without a
