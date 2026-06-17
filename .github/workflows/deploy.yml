@@ -20,9 +20,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Project Pages live at https://lzpel.github.io/cadrum-wasm-example/ ,
-      # so the static export must be built with this base path (see next.config.js).
-      PAGES_BASE_PATH: /cadrum-wasm-example
+      # Project Pages live at https://lzpel.github.io/cadrum-wasm-example/ , so
+      # the static build must use this base path (Trunk --public-url).
+      PUBLIC_URL: /cadrum-wasm-example/
       # build.sh reads this to find the wasi-sdk clang + sysroot.
       WASI_SDK_PATH: ${{ github.workspace }}/wasi-sdk-33
     steps:
@@ -38,20 +38,20 @@ jobs:
           rustup default stable
           rustup target add wasm32-unknown-unknown
 
-      - name: Cache cargo + wasm target
+      - name: Cache cargo + target
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            wasm/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('wasm/Cargo.toml') }}
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Install wasm-pack
+      - name: Install Trunk
         run: |
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          curl -fsSL https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          install -m 0755 trunk "$HOME/.cargo/bin/trunk"
 
       - name: Download wasi-sdk 33 (Linux)
         run: |
@@ -59,20 +59,13 @@ jobs:
           mv wasi-sdk-33.0-x86_64-linux wasi-sdk-33
           test -x wasi-sdk-33/bin/clang
 
-      - name: Build wasm (cadrum from git, rev2 prebuilt OCCT)
-        run: |
-          cd wasm
-          bash build.sh
+      - name: Build wasm site (Trunk, cadrum from git)
+        run: bash build.sh build --release --public-url "$PUBLIC_URL"
 
       # Run the SAME wasm under Node (V8) — catches wasm runtime bugs without a
-      # browser. Fails the build if STEP→GLB conversion is broken.
-      - name: CLI smoke test (Node)
+      # browser. Fails the build if chijin GLB generation is broken.
+      - name: Headless smoke test (Node)
         run: node --experimental-wasm-exnref run_node.mjs
-
-      - name: Build static site (next export)
-        run: |
-          npm install
-          npm run build
 
       - uses: actions/configure-pages@v5
         with:
@@ -80,7 +73,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./dist
 
   deploy:
     needs: build
