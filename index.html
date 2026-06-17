@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cadrum wasm: STEP → GLB</title>
+    <!-- Build this crate to wasm.
+         - data-wasm-opt="0": OCCT-derived exnref exception handling makes
+           wasm-opt(binaryen) crash in its Precompute pass, so skip it.
+         - data-reference-types="true": the module already enables wasm
+           reference-types (via exnref EH), so wasm-bindgen must use the
+           externref table for the Result<_, JsValue> catch wrappers. -->
+    <link data-trunk rel="rust" data-wasm-opt="0" data-reference-types="true" />
+    <!-- Google <model-viewer> via CDN. No three.js / npm dependency. -->
+    <script
+      type="module"
+      src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"
+    ></script>
+    <style>
+      body {
+        margin: 0 auto;
+        max-width: 900px;
+        padding: 24px;
+        font-family: system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body></body>
+</html>

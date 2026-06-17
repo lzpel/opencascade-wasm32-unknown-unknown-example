@@ -1,0 +1,41 @@
+[package]
+name = "cadrum_web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "Node",
+    "Element",
+    "HtmlElement",
+    "HtmlInputElement",
+    "Event",
+    "EventTarget",
+    "File",
+    "FileList",
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+] }
+# Track cadrum `main` (unpinned, with Cargo.lock git-ignored) so every build
+# re-resolves the latest commit — this repo's job is to canary the *current*
+# cadrum wasm path. Default features (color/png) match the known-good build.
+cadrum = { git = "https://github.com/lzpel/cadrum" }
+
+# Size optimization for the final wasm (rust side only; OCCT/C++ is handled by cc).
+# No `panic = "abort"`: wasm32-unknown-unknown already defaults to abort, so rustc
+# emits no (legacy-EH) landing pads to clash with OCCT's exnref EH.
+#
+# NOTE: wasm-opt is NOT configured here. OCCT-derived exnref exception handling
+# makes wasm-opt(binaryen) crash in its Precompute pass, so it is disabled the
+# Trunk way — `data-wasm-opt="0"` on the rust link in index.html.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

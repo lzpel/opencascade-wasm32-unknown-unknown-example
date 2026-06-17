@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
-# Build the cadrum_web wasm crate with wasm-pack.
+# Build/serve the cadrum_web wasm app with Trunk.
 #
 # cadrum links a C++ OCCT prebuilt and compiles a small C++ bridge (cxx_build)
 # even when using the *prebuilt* OCCT. For wasm32-unknown-unknown that C++ TU
-# must be compiled with the wasi-sdk clang + sysroot, so we mirror the toolchain
-# env from cadrum's sandbox-wasm/makefile here.
+# must be compiled with the wasi-sdk clang + sysroot, so we set the same
+# toolchain env cadrum's sandbox-wasm/makefile uses, then run Trunk (which
+# drives `cargo build` + wasm-bindgen under the hood, same as wasm-pack did).
 #
-# Nothing else is needed: the three wasm runtime problems this example used to
-# work around are now solved upstream in cadrum (see README), so there is no
-# WASI shim, no `wasm-opt --translate-to-exnref` normalization, and no glue
-# patching — just set the toolchain env and run wasm-pack.
+# wasm-opt is disabled via `data-wasm-opt="0"` in index.html (OCCT's exnref EH
+# crashes binaryen), so there is nothing to configure here for that.
 #
-# Portable: works on Linux (CI / GitHub Actions) and on Windows (Git-Bash/MSYS).
+# Portable: works on Linux (CI / GitHub Actions) and Windows (Git-Bash/MSYS).
 #
 # Toolchain discovery:
-#   wasi-sdk-33  -> $WASI_SDK_PATH, else ./wasi-sdk-33 / ../wasi-sdk-33 / /opt/wasi-sdk
-#   wasm-pack    -> on PATH, else ../bin/wasm-pack(.exe)
+#   wasi-sdk-33  -> $WASI_SDK_PATH, else ./wasi-sdk-33 / /opt/wasi-sdk
+#   trunk        -> on PATH
 #
-# Usage:  bash build.sh        (run from <repo>/wasm/)
+# Usage:
+#   bash build.sh                       # = trunk build --release  -> ./dist
+#   bash build.sh serve                 # dev server with rebuild
+#   bash build.sh build --release --public-url /cadrum-wasm-example/
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -40,11 +42,8 @@ if [ -z "$WASI" ]; then
 fi
 [ -n "$WASI" ] && [ -d "$WASI" ] || { echo "build.sh: wasi-sdk not found. Set WASI_SDK_PATH." >&2; exit 1; }
 
-# --- locate wasm-pack ------------------------------------------------------
-WASM_PACK="$(command -v wasm-pack || true)"
-[ -z "$WASM_PACK" ] && [ -x "$HERE/../bin/wasm-pack" ]     && WASM_PACK="$HERE/../bin/wasm-pack"
-[ -z "$WASM_PACK" ] && [ -x "$HERE/../bin/wasm-pack.exe" ] && WASM_PACK="$HERE/../bin/wasm-pack.exe"
-[ -n "$WASM_PACK" ] || { echo "build.sh: wasm-pack not found on PATH." >&2; exit 1; }
+# --- locate trunk ----------------------------------------------------------
+command -v trunk >/dev/null 2>&1 || { echo "build.sh: trunk not found on PATH (cargo install trunk)." >&2; exit 1; }
 
 SYSROOT="$(to_native "$WASI/share/wasi-sysroot")"
 
@@ -67,4 +66,6 @@ export CFLAGS_wasm32_unknown_unknown="--target=wasm32-wasip1 --sysroot=$SYSROOT 
 export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="-L native=$SYSROOT/lib/wasm32-wasip1/eh -L native=$SYSROOT/lib/wasm32-wasip1 -l static=c++abi -l static=unwind -l static=c"
 
 cd "$HERE"
-"$WASM_PACK" build --target web -d pkg "$@"
+# Default to a release build into ./dist when no Trunk subcommand is given.
+[ "$#" -eq 0 ] && set -- build --release
+exec trunk "$@"
