@@ -1,13 +1,6 @@
 # rust / wasm + trunk build output
 /target/
 /dist/
-# Not committed on purpose: this repo verifies the *latest* cadrum main, so the
-# cadrum git dependency should re-resolve on every build instead of being pinned.
-/Cargo.lock
-
-# toolchains fetched locally
-wasi-sdk-33/
-bin/
 
 # misc
 *.log
