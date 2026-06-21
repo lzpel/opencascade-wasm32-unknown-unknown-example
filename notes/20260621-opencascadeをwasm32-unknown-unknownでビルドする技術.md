@@ -56,7 +56,7 @@ OCCTは内部でC++例外を投げます。これをwasmで成立させるには
 
 ## ハマり③: wasm-opt が新機能を理解せず弾く
 
-exnref EH を使ったwasmは、`reference-types` や `bulk-memory` といった比較的新しいwasm機能も巻き込みます。ここでwasm-opt（binaryen）が既定設定だと検証で落ちます。`try_table requires exception-handling` のようなエラーで止まるのが典型です。
+exnref EH を使ったwasmは、`reference-types` や `bulk-memory` といった比較的新しいwasm機能も巻き込みます。ここでwasm-opt（binaryen）に機能を有効化して渡さないと、検証段階で `Tags require exception-handling` のようなエラーで止まります。
 
 このexampleはビルドに [Trunk](https://trunkrs.dev/) を使っていて、`index.html` のリンクタグに属性で指定します。
 
@@ -79,6 +79,27 @@ exnref EH を使ったwasmは、`reference-types` や `bulk-memory` といった
 - `data-wasm-opt="z"`: wasm-opt をサイズ最適化（`-Oz`相当）で走らせる。
 - `data-wasm-opt-params="-all"`: 全wasm機能を有効化して wasm-opt に渡す。exnref/reference-types/bulk-memory を理解させ、「未知の命令なので拒否」を防ぐ。
 - `data-reference-types="true"`: モジュールがすでに reference-types を有効にしているので、wasm-bindgen も externref テーブルを使うよう指示。`Result<_, JsValue>` の catch wrapper がこれに乗る。
+
+### 実測: 後ろ2つの属性は本当に外すと落ちる
+
+`data-wasm-opt="z"` はサイズ最適化を走らせるだけなので外しても「最適化されない」だけですが、残り2属性は本当に必須なのか、`make deploy-cross` で1つずつ外してビルドして確かめました。
+
+**`data-wasm-opt-params="-all"` を外す** → wasm-opt が検証で失敗（exit 1）。`data-reference-types="true"` だけでは `--enable-reference-types` しか渡らず、例外処理機能が無効のまま弾かれます。
+
+```
+[wasm-validator error in module] unexpected false: Tags require exception-handling [--enable-exception-handling]
+Fatal: error validating input
+```
+
+**`data-reference-types="true"` を外す** → 今度はその手前の wasm-bindgen が失敗（exit 1）。`Result<_, JsValue>` の catch wrapper を生成するのに externref テーブルが要る、と明示的に怒られます。
+
+```
+error: failed to generate catch wrappers
+Caused by:
+    externref table required for catch wrappers
+```
+
+というわけで、この2属性は**どちらも外すとビルドが通らない＝本物のハマりどころ**でした（`panic = "abort"` のように「あってもなくても同じ」ではありません）。
 
 ## ハマり④: ツールチェイン (wasi-sdk clang + sysroot)
 
