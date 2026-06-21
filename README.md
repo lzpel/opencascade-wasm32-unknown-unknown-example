@@ -1,5 +1,7 @@
 # opencascade-wasm32-unknown-unknown-example — STEP → GLB in the browser
 
+![img](./screenshot.png)
+
 A minimal [Trunk](https://trunkrs.dev/) app that loads a wasm build of
 [cadrum](https://github.com/lzpel/cadrum) (from crates.io) and **runs entirely
 in the browser**:
