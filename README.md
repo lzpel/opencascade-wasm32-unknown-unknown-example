@@ -1,4 +1,4 @@
-# cadrum-wasm-example — STEP → GLB in the browser
+# opencascade-wasm32-unknown-unknown-example — STEP → GLB in the browser
 
 A minimal [Trunk](https://trunkrs.dev/) app that loads a wasm build of
 [cadrum](https://github.com/lzpel/cadrum) (from crates.io) and **runs entirely
@@ -13,7 +13,7 @@ there is **no JS/TS build, no npm dependency, no bundler config**.
 
 ## 🌐 Live site
 
-**https://lzpel.github.io/cadrum-wasm-example/**
+**https://lzpel.github.io/opencascade-wasm32-unknown-unknown-example/**
 
 Built and deployed by GitHub Actions (`.github/workflows/deploy.yml`): it runs
 `make deploy-cross` and publishes `dist/` to GitHub Pages.
