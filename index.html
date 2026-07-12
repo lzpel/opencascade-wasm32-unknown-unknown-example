@@ -7,12 +7,12 @@
     <!-- Build this crate to wasm.
          - data-wasm-opt="z": run wasm-opt (binaryen) with size optimization.
          - data-wasm-opt-params="-all": the OCCT/cadrum module uses wasm
-           exception-handling (exnref), reference-types and bulk-memory; enable
-           all features so wasm-opt validates/optimizes it instead of rejecting
-           `try_table requires exception-handling`.
-         - data-reference-types="true": the module already enables wasm
-           reference-types (via exnref EH), so wasm-bindgen must use the
-           externref table for the Result<_, JsValue> catch wrappers. -->
+           exception-handling (legacy encoding), reference-types, bulk-memory and
+           other post-MVP features; enable all features so wasm-opt validates/
+           optimizes it instead of rejecting `Tags require exception-handling`.
+         - data-reference-types="true": wasm-bindgen needs an externref table for
+           the Result<_, JsValue> catch wrappers, so reference-types must be on
+           (independent of the exception-handling encoding). -->
     <link data-trunk rel="rust" data-wasm-opt="z" data-wasm-opt-params="-all" data-reference-types="true" />
     <!-- Google <model-viewer> via CDN. No three.js / npm dependency. -->
     <script
