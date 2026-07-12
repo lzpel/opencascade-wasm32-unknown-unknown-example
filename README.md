@@ -54,5 +54,5 @@ toolchain env (i.e. *inside* the cross image); it installs Trunk and runs
   binaryen and size-optimizes the final wasm.
 - `src/main.rs` runs OCCT's C++ global constructors at startup (`__wasm_call_ctors`,
   mirroring `cadrum::wasm_start!`); without it the first OCCT call traps.
-- The module uses wasm exception handling (exnref) — use an up-to-date
-  Chrome / Edge / Firefox (Node needs `--experimental-wasm-exnref`).
+- The module uses wasm exception handling (the legacy encoding) — it runs on any
+  current Chrome / Edge / Firefox, or Node (no `--experimental-wasm-exnref` flag needed).

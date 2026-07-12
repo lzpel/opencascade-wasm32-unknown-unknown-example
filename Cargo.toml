@@ -22,14 +22,15 @@ web-sys = { version = "0.3", features = [
     "BlobPropertyBag",
     "Url",
 ] }
-# cadrum from crates.io, pinned by semver (^0.8 — cadrum's own README
-# recommendation). Cargo.lock is committed for reproducible builds. Default
-# features (color/png) match the known-good build.
-cadrum = "^0.8"
+# cadrum from crates.io, pinned by semver (^0.8.14 — the first release with the
+# legacy wasm exception-handling encoding, so the module runs without the
+# `--experimental-wasm-exnref` runtime flag; #233). Cargo.lock is committed for
+# reproducible builds. Default features (color/png) match the known-good build.
+cadrum = "^0.8.14"
 
 # Size optimization for the final wasm (rust side only; OCCT/C++ is handled by cc).
 # No `panic = "abort"`: wasm32-unknown-unknown already defaults to abort, so rustc
-# emits no (legacy-EH) landing pads to clash with OCCT's exnref EH.
+# emits no landing pads that could clash with OCCT's (legacy-encoding) wasm EH.
 #
 # wasm-opt (binaryen) runs as a separate post-pass, enabled the Trunk way via
 # `data-wasm-opt="z"` on the rust link in index.html (size-optimizing).
