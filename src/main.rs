@@ -67,13 +67,22 @@ pub fn chijin_glb() -> Result<Vec<u8>, JsValue> {
     Ok(out)
 }
 
+/// Paint every face. A face colour outranks the solid colour, and boolean ops carry it
+/// via history, so it survives where `Solid::color` (the whole solid) would be overwritten.
+fn color_faces(mut solid: Solid, color: impl Into<Color>) -> Solid {
+    let c = color.into();
+    let ids: Vec<u64> = solid.iter_face().map(|f| f.id()).collect();
+    for id in ids {
+        solid.colormap_mut().insert(id, c);
+    }
+    solid
+}
+
 /// `chijin()` from cadrum `examples/00_chijin.rs` (file-IO stripped): a chijin
 /// hand drum — cylinder body, revolve-swept drum heads, and 20 rainbow lacing
 /// blocks with holes, assembled with boolean ops.
 fn chijin() -> Result<Solid, cadrum::Error> {
-    let cylinder = Solid::cylinder(15.0, DVec3::Y * 8.0)
-        .translate(DVec3::Y * -4.0)
-        .color("#999");
+    let cylinder = color_faces(Solid::cylinder(15.0, DVec3::Y * 8.0).translate(DVec3::Y * -4.0), "#999");
 
     let cross_section = Edge::polygon(&[
         DVec3::new(0.0, 5.0, 0.0),
@@ -83,7 +92,7 @@ fn chijin() -> Result<Solid, cadrum::Error> {
         DVec3::new(0.0, 4.0, 0.0),
     ])?;
     let spine = Edge::circle(1.0, DVec3::Y)?;
-    let sheet = Solid::sweep(&cross_section, &[spine], ProfileOrient::Up(DVec3::Y))?.color("#fff");
+    let sheet = color_faces(Solid::sweep(&cross_section, &[spine], ProfileOrient::Up(DVec3::Y))?, "#fff");
     let sheets = [sheet.clone().mirror(DVec3::ZERO, DVec3::Y), sheet];
 
     let block_proto = Solid::cube(DVec3::ZERO, DVec3::new(2.0, 1.0, 8.0))
@@ -96,7 +105,7 @@ fn chijin() -> Result<Solid, cadrum::Error> {
     const N: usize = 20;
     let angle = |i: usize| 2.0 * PI * (i as f64) / (N as f64);
     let color = |i: usize| Color::from_hsv(i as f32 / N as f32, 1.0, 1.0);
-    let blocks: [Solid; N] = std::array::from_fn(|i| block_proto.clone().rotate_y(-angle(i)).color(color(i)));
+    let blocks: [Solid; N] = std::array::from_fn(|i| color_faces(block_proto.clone().rotate_y(-angle(i)), color(i)));
     let holes: [Solid; N] = std::array::from_fn(|i| hole_proto.clone().rotate_y(-angle(i)));
 
     let mut result: Solid = (&cylinder + &sheets[0] + &sheets[1]).build()?;
