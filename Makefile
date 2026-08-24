@@ -22,6 +22,8 @@ deploy:
 # redirected out of the mount so no root-owned target/ lands in the work tree.
 # MSYS_NO_PATHCONV=1 stops Git-Bash/MSYS from rewriting the container paths
 # (/src, /tmp/target) into Windows paths; it is an ignored no-op on Linux/CI.
+# --pull=always keeps the mutable `latest` tag honest: a stale local cache (pre-cadrum-0.8.14)
+# has an exnref sysroot and links a mixed-EH module that every wasm engine rejects.
 .PHONY: deploy-cross
 deploy-cross:
-	MSYS_NO_PATHCONV=1 docker run --rm -v "$(PWD)":/src -w /src -e CARGO_TARGET_DIR=/tmp/target $(CROSS_IMAGE) make deploy
+	MSYS_NO_PATHCONV=1 docker run --rm --pull=always -v "$(PWD)":/src -w /src -e CARGO_TARGET_DIR=/tmp/target $(CROSS_IMAGE) make deploy
