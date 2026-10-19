@@ -1,6 +1,6 @@
 //! cadrum wasm: STEP → GLB, entirely in the browser.
 //!
-//! Built with Trunk (`--target web`). On load it generates the `00_chijin`
+//! Built with Trunk (`--target web`). On load it generates the `100_chijin`
 //! example geometry dynamically and renders it with Google `<model-viewer>`;
 //! selecting a `.step`/`.stp` file converts it to GLB and swaps the model.
 //!
@@ -9,7 +9,7 @@
 //! `#[wasm_bindgen(start)]`, and wasm-bindgen allows only one start — which
 //! must also launch the UI here.
 
-use cadrum::{Color, DVec3, Edge, ProfileOrient, Solid};
+use cadrum::{Color, DVec3, Edge, Solid};
 use std::f64::consts::PI;
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
@@ -54,7 +54,7 @@ pub fn step_to_glb(step: &[u8]) -> Result<Vec<u8>, JsValue> {
     Ok(out)
 }
 
-/// Build the `00_chijin` example geometry and return it as GLB. Pure (no DOM),
+/// Build the `100_chijin` example geometry and return it as GLB. Pure (no DOM),
 /// so the Node smoke test can call it; the browser uses it for the default model.
 #[wasm_bindgen]
 pub fn chijin_glb() -> Result<Vec<u8>, JsValue> {
@@ -78,11 +78,11 @@ fn color_faces(mut solid: Solid, color: impl Into<Color>) -> Solid {
     solid
 }
 
-/// `chijin()` from cadrum `examples/00_chijin.rs` (file-IO stripped): a chijin
-/// hand drum — cylinder body, revolve-swept drum heads, and 20 rainbow lacing
+/// `chijin()` from cadrum `examples/100_chijin.rs` (file-IO stripped): a chijin
+/// hand drum — cylinder body, revolved drum heads, and 20 rainbow lacing
 /// blocks with holes, assembled with boolean ops.
 fn chijin() -> Result<Solid, cadrum::Error> {
-    let cylinder = color_faces(Solid::cylinder(15.0, DVec3::Y * 8.0).translate(DVec3::Y * -4.0), "#999");
+    let cylinder = Solid::cylinder(15.0, DVec3::Y * 8.0).translate(DVec3::Y * -4.0).color("#999");
 
     let cross_section = Edge::polygon(&[
         DVec3::new(0.0, 5.0, 0.0),
@@ -91,8 +91,7 @@ fn chijin() -> Result<Solid, cadrum::Error> {
         DVec3::new(15.0, 4.0, 0.0),
         DVec3::new(0.0, 4.0, 0.0),
     ])?;
-    let spine = Edge::circle(1.0, DVec3::Y)?;
-    let sheet = color_faces(Solid::sweep(&cross_section, &[spine], ProfileOrient::Up(DVec3::Y))?, "#fff");
+    let sheet = color_faces(Solid::revolve(&cross_section, DVec3::ZERO, DVec3::Y, 2.0 * PI)?, "#fff");
     let sheets = [sheet.clone().mirror(DVec3::ZERO, DVec3::Y), sheet];
 
     let block_proto = Solid::cube(DVec3::ZERO, DVec3::new(2.0, 1.0, 8.0))
@@ -144,12 +143,12 @@ fn build_ui() -> Result<(), JsValue> {
     viewer.set_attribute("style", "width:100%;height:500px;background:#eee")?;
     body.append_child(&viewer)?;
 
-    // Default model: generate 00_chijin dynamically (no STEP file shipped).
+    // Default model: generate 100_chijin dynamically (no STEP file shipped).
     match chijin_glb() {
         Ok(glb) => {
             viewer.set_attribute("src", &glb_object_url(&glb)?)?;
             status.set_text_content(Some(&format!(
-                "Default model: 00_chijin ({} GLB bytes). Select a .step / .stp to convert.",
+                "Default model: 100_chijin ({} GLB bytes). Select a .step / .stp to convert.",
                 glb.len()
             )));
         }

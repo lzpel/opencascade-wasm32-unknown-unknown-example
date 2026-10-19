@@ -6,7 +6,7 @@ A minimal [Trunk](https://trunkrs.dev/) app that loads a wasm build of
 [cadrum](https://github.com/lzpel/cadrum) (from crates.io) and **runs entirely
 in the browser**:
 
-- **On load** it generates the `examples/00_chijin.rs` geometry dynamically
+- **On load** it generates the `examples/100_chijin.rs` geometry dynamically
   (no STEP file is shipped) and renders it with Google `<model-viewer>`.
 - **Select a `.step` / `.stp` file** and it is converted to GLB and shown.
 
@@ -23,7 +23,7 @@ Built and deployed by GitHub Actions (`.github/workflows/deploy.yml`): it runs
 ## Files
 
 ```
-Cargo.toml                    # cadrum = "^0.8" (crates.io); deps; release profile
+Cargo.toml                    # cadrum = "^0.9" (crates.io); deps; release profile
 Cargo.lock                    # committed for reproducible builds
 src/main.rs                   # fn main() (entry) + step_to_glb / chijin_glb + web-sys UI
 index.html                    # Trunk entry; <model-viewer> CDN; data-wasm-opt="z"
